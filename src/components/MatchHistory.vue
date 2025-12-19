@@ -2,17 +2,30 @@
   <div class="match-history-container">
     <div class="header">
       <h2>战绩历史</h2>
-      <div class="search-bar">
-        <input 
-          v-model="summonerName" 
-          @keyup.enter="fetchMatches" 
-          placeholder="输入召唤师名字..." 
-          class="search-input"
-        />
-        <button @click="fetchMatches" :disabled="loading" class="search-btn">
-          {{ loading ? '加载中...' : '查询' }}
-        </button>
+      <div class="search-bar-wrapper">
+        <div class="search-bar">
+          <input 
+            v-model="summonerName" 
+            @keyup.enter="fetchMatches" 
+            @focus="showHistory = true"
+            @blur="hideHistoryDelayed"
+            placeholder="输入召唤师名字..." 
+            class="search-input"
+          />
+          <button @click="fetchMatches" :disabled="loading" class="search-btn">
+            {{ loading ? '加载中...' : '查询' }}
+          </button>
+        </div>
+        
+        <!-- Search History Dropdown -->
+        <div v-if="showHistory && searchHistory.length > 0" class="search-history-dropdown">
+            <div v-for="(name, index) in searchHistory" :key="index" class="history-item">
+                <span class="history-name" @click="selectHistory(name)">{{ name }}</span>
+                <span class="delete-btn" @click.stop="deleteHistory(index)">×</span>
+            </div>
+        </div>
       </div>
+
       <div class="filters">
         <select v-model="selectedGameMode" @change="fetchMatches">
             <option value="">所有模式</option>
@@ -27,42 +40,44 @@
     </div>
 
     <div v-if="matches.length > 0" class="match-list">
-      <div v-for="match in matches" :key="match.MatchId" class="match-card" :class="{ 'win': match.Win, 'loss': !match.Win }">
+      <div v-for="match in matches" :key="match.MatchId || match.matchId" class="match-card" :class="{ 'win': isWin(match), 'loss': !isWin(match) }">
         <div class="match-info">
           <div class="game-meta">
-            <span class="mode">{{ match.GameMode }}</span>
-            <span class="date">{{ formatDate(match.GameDate) }}</span>
-            <span class="duration">{{ formatDuration(match.GameDuration) }}</span>
-            <span class="result" :class="{ 'win-text': match.Win, 'loss-text': !match.Win }">
-              {{ match.Win ? '胜利' : '失败' }}
+            <span class="mode">{{ match.GameMode ?? match.gameMode }}</span>
+            <span class="date">{{ formatDate(match.GameDate ?? match.gameDate) }}</span>
+            <span class="duration">{{ formatDuration(match.GameDuration ?? match.gameDuration) }}</span>
+            <span class="result" :class="{ 'win-text': isWin(match), 'loss-text': !isWin(match) }">
+              {{ isWin(match) ? '胜利' : '失败' }}
             </span>
           </div>
           
           <div class="champion-info">
              <div class="champion-icon-wrapper">
-                <img :src="getChampionIcon(match.ChampionName)" :alt="match.ChampionName" class="champion-icon" />
-                <div class="level-badge" v-if="match.ChampLevel">{{ match.ChampLevel }}</div>
+                <img :src="getChampionIcon(match)" :alt="match.ChampionName || match.championName" class="champion-icon" />
+                <div class="level-badge" v-if="match.ChampLevel || match.champLevel">{{ match.ChampLevel || match.champLevel }}</div>
              </div>
-             <span class="champion-name">{{ match.ChampionName }}</span>
+             <span class="champion-name">{{ match.ChampionName || match.championName }}</span>
           </div>
 
           <div class="kda-stats">
             <div class="kda">
-              <span>{{ match.Kills }}</span> / <span class="deaths">{{ match.Deaths }}</span> / <span>{{ match.Assists }}</span>
+              <span>{{ match.Kills ?? match.kills }}</span> / 
+              <span class="deaths">{{ match.Deaths ?? match.deaths }}</span> / 
+              <span>{{ match.Assists ?? match.assists }}</span>
             </div>
             <div class="kda-ratio">
-              {{ calculateKDA(match.Kills, match.Deaths, match.Assists) }} KDA
+              {{ calculateKDA(match) }} KDA
             </div>
           </div>
 
           <div class="items-list">
              <img 
-               v-for="(itemId, index) in parseItemIds(match.ItemIds)" 
+               v-for="(itemId, index) in parseItemIds(match)" 
                :key="index" 
                :src="getItemIcon(itemId)" 
                class="item-icon" 
                :alt="itemId"
-               @error="$event.target.style.display='none'"
+               @error="handleImgError"
              />
           </div>
         </div>
@@ -93,11 +108,68 @@ const page = ref(1);
 const totalPages = ref(1);
 const pageSize = ref(10);
 const selectedGameMode = ref('');
-const gameVersion = ref('13.24.1'); // 默认版本，最好动态获取
+const gameVersion = ref('14.23.1'); // 更新默认版本
+const championMap = ref({});
+
 const hasSearched = ref(false);
 
+// Search History Logic
+const searchHistory = ref(JSON.parse(localStorage.getItem('lol_search_history') || '[]'));
+const showHistory = ref(false);
+
+const saveHistory = (name) => {
+    if (!name) return;
+    const history = searchHistory.value.filter(n => n !== name); // Remove duplicate if exists
+    history.unshift(name); // Add to beginning
+    if (history.length > 10) history.pop(); // Keep max 10
+    searchHistory.value = history;
+    localStorage.setItem('lol_search_history', JSON.stringify(history));
+};
+
+const deleteHistory = (index) => {
+    searchHistory.value.splice(index, 1);
+    localStorage.setItem('lol_search_history', JSON.stringify(searchHistory.value));
+};
+
+const selectHistory = (name) => {
+    summonerName.value = name;
+    showHistory.value = false;
+    fetchMatches();
+};
+
+const hideHistoryDelayed = () => {
+    setTimeout(() => {
+        showHistory.value = false;
+    }, 200); // Small delay to allow click event to register
+};
+
+const fetchChampionData = async (version) => {
+    try {
+        console.log(`[DataDragon] Fetching champion data for version ${version}...`);
+        const response = await api.getChampionData(version);
+        const data = response.data.data;
+        const map = {};
+        let count = 0;
+        for (const key in data) {
+             const champ = data[key];
+             // Data Dragon keys are numeric strings (e.g., "266"), values are IDs (e.g., "Aatrox")
+             map[champ.key] = champ.id;
+             count++;
+        }
+        championMap.value = map;
+        console.log(`[DataDragon] Loaded champion map with ${count} entries. Example: Key '1' -> ${map['1']}`);
+    } catch (e) {
+        console.error("Failed to load champion data:", e);
+    }
+};
+
+// ... (fetchMatches, changePage, etc. remain the same) ...
 const fetchMatches = async () => {
     if (!summonerName.value) return;
+    
+    // Save to history before fetching
+    saveHistory(summonerName.value);
+    showHistory.value = false;
     
     loading.value = true;
     error.value = null;
@@ -105,25 +177,33 @@ const fetchMatches = async () => {
 
     try {
         const response = await api.getMatchHistory(summonerName.value, page.value, pageSize.value, selectedGameMode.value);
-        // 根据新的后端API文档，响应结构是 { matches: [], totalPages: 10, ... }
-        // 假设后端直接返回数据对象
         const data = response.data;
         matches.value = data.matches || [];
         totalPages.value = data.totalPages || 1;
         
-        // 如果有第一条数据，可以用它的版本号
-        if (matches.value.length > 0 && matches.value[0].GameVersion) {
-            gameVersion.value = matches.value[0].GameVersion;
+        if (matches.value.length > 0) {
+            console.log("First match data structure:", matches.value[0]);
+            if (matches.value[0].GameVersion) {
+                gameVersion.value = matches.value[0].GameVersion;
+                console.log("Updated Data Dragon version from match data:", gameVersion.value);
+            }
         }
 
     } catch (err) {
         console.error("Error fetching matches:", err);
-        error.value = "获取战绩失败，请检查后端服务是否启动。";
+         if (err.response) {
+            error.value = `请求失败 (${err.response.status}): ${err.response.data?.message || err.message}`;
+        } else if (err.request) {
+             error.value = "请求未收到响应，请检查后端服务或网络。";
+        } else {
+             error.value = `发生错误: ${err.message}`;
+        }
         matches.value = [];
     } finally {
         loading.value = false;
     }
 };
+
 
 const changePage = (newPage) => {
     page.value = newPage;
@@ -133,30 +213,79 @@ const changePage = (newPage) => {
 const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    // 简单格式化 MM-DD HH:mm
     return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 };
 
 const formatDuration = (durationString) => {
-    // 假设是 TimeSpan "00:25:30" 
     if (!durationString) return '';
     const parts = durationString.split(':');
     if (parts.length >= 2) {
-        return `${parts[1]}分${parts[0] !== '00' ? parts[0] + '时' : ''}`; // 简单处理
+        return `${parts[1]}分${parts[0] !== '00' ? parts[0] + '时' : ''}`;
     }
     return durationString;
 };
 
-const calculateKDA = (k, d, a) => {
+const isWin = (match) => {
+    const winVal = match.Win !== undefined ? match.Win : match.win;
+    if (winVal === undefined) return false;
+    if (typeof winVal === 'boolean') return winVal;
+    if (typeof winVal === 'number') return winVal === 1;
+    if (typeof winVal === 'string') return winVal.toLowerCase() === 'true' || winVal === '1';
+    return false;
+};
+
+const calculateKDA = (match) => {
+    const k = match.Kills ?? match.kills ?? 0;
+    const d = match.Deaths ?? match.deaths ?? 0;
+    const a = match.Assists ?? match.assists ?? 0;
     if (d === 0) return 'Perfect';
     return ((k + a) / d).toFixed(2);
 };
 
 // Data Dragon Helpers
-const getChampionIcon = (championName) => {
-    // 某些英雄名字可能有特殊字符，需要处理，这里暂时直接用
-    if(!championName) return '';
-    return `https://ddragon.leagueoflegends.com/cdn/${gameVersion.value}/img/champion/${championName}.png`;
+const fixChampionName = (name) => {
+    if (!name) return '';
+    // 处理特殊情况
+    switch (name) {
+        case 'Wukong': return 'MonkeyKing';
+        case 'FiddleSticks': return 'Fiddlesticks'; // Old API might return camelCase
+        default: 
+            // 移除空格和撇号 ' (e.g. Kai'Sa -> KaiSa, Lee Sin -> LeeSin)
+            return name.replace(/[' ]/g, ''); 
+    }
+};
+
+const getChampionIcon = (match) => {
+    // 兼容旧调用方式 (如果传入的是字符串)
+    if (typeof match === 'string') {
+        const fixedName = fixChampionName(match);
+        return fixedName ? `https://ddragon.leagueoflegends.com/cdn/${gameVersion.value}/img/champion/${fixedName}.png` : '';
+    }
+
+    // Support both PascalCase and camelCase
+    const champId = match.ChampionId || match.championId;
+    const champName = match.ChampionName || match.championName;
+
+    let imageId = '';
+
+    // 优先使用 ID 查找 (确保 champId 转为字符串比较)
+    if (champId && championMap.value[String(champId)]) {
+        imageId = championMap.value[String(champId)];
+        // console.log(`[Icon] Found by ID: ${champId} -> ${imageId}`);
+    } else {
+        // 降级使用名称
+        imageId = fixChampionName(champName);
+        console.warn(`[Icon] ID lookup failed for ID: ${champId}, Name: ${champName}. Fallback to fixed name: ${imageId}`);
+    }
+
+    if (!imageId) return '';
+    
+    const url = `https://ddragon.leagueoflegends.com/cdn/${gameVersion.value}/img/champion/${imageId}.png`;
+    
+    // 只在首次或特定条件下打印，避免列表过长刷屏 (这里为了调试暂时全部打印，或者只打印错误的)
+    console.log(`[Icon] Generated URL: ${url}`);
+    
+    return url;
 };
 
 const getItemIcon = (itemId) => {
@@ -164,10 +293,29 @@ const getItemIcon = (itemId) => {
     return `https://ddragon.leagueoflegends.com/cdn/${gameVersion.value}/img/item/${itemId}.png`;
 };
 
-const parseItemIds = (itemIdsStr) => {
+const parseItemIds = (match) => {
+    // Check if match is null or undefined
+    if (!match) return [];
+
+    // Support both PascalCase and camelCase
+    // If 'match' is just the string (legacy call), handle that too for safety
+    let itemIdsStr = match.ItemIds || match.itemIds;
+    if (typeof match === 'string') {
+        itemIdsStr = match;
+    }
+
     if (!itemIdsStr) return [];
-    return itemIdsStr.split(',').filter(id => id && id !== '0');
+    
+    // Handle if it's already an array
+    if (Array.isArray(itemIdsStr)) return itemIdsStr.filter(id => id && id !== 0 && id !== '0');
+    
+    return itemIdsStr.toString().split(',').filter(id => id && id !== '0' && id.trim() !== '');
 }
+
+const handleImgError = (e) => {
+    e.target.style.display = 'none';
+    console.warn(`Image failed to load: ${e.target.src}`);
+};
 
 onMounted(async () => {
     // 可选：获取最新版本号
@@ -175,10 +323,12 @@ onMounted(async () => {
         const vRes = await api.getVersions();
         if (vRes.data && vRes.data.length > 0) {
             gameVersion.value = vRes.data[0];
+            console.log("Updated Data Dragon version to:", gameVersion.value);
         }
     } catch (e) {
-        console.warn("Could not fetch ddragon versions, using default.");
+        console.warn("Could not fetch ddragon versions, using default.", e);
     }
+    fetchChampionData(gameVersion.value);
 });
 </script>
 
@@ -197,11 +347,63 @@ onMounted(async () => {
     align-items: center;
 }
 
+.search-bar-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+}
+
 .search-bar {
     display: flex;
     gap: 10px;
     width: 100%;
-    max-width: 500px;
+}
+
+.search-history-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 0 0 8px 8px;
+    z-index: 10;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.history-item {
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-item:hover {
+    background: #333;
+}
+
+.history-name {
+    flex: 1;
+}
+
+.delete-btn {
+    color: #888;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.delete-btn:hover {
+    background: #444;
+    color: #f44336;
 }
 
 .search-input {
