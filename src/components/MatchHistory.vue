@@ -17,7 +17,8 @@
           <select v-model="selectedGameMode" @change="fetchMatches" class="mode-select">
             <option value="">所有模式</option>
             <option value="ARAM">极地大乱斗</option>
-            <option value="CLASSIC">召唤师峡谷</option> 
+            <option value="CLASSIC">召唤师峡谷</option>
+            <option value="CHERRY">斗魂竞技场</option>
           </select>
         </div>
         
@@ -52,7 +53,7 @@
           >
             <div class="match-info">
               <div class="game-meta">
-                <span class="mode">{{ match.GameMode ?? match.gameMode }}</span>
+                <span class="mode">{{ getModeName(match) }}</span>
                 <span class="date">{{ formatDate(match.GameCreation ?? match.gameCreation ?? match.GameDate ?? match.gameDate) }}</span>
                 <span class="result" :class="{ 'win-text': isWin(match), 'loss-text': !isWin(match) }">
                   {{ isWin(match) ? '胜' : '负' }}
@@ -184,6 +185,26 @@ const hasSearched = ref(false);
 const selectedMatchDetails = ref(null);
 const showDetails = ref(false);
 const detailLoading = ref(false);
+
+const queueMap = {
+    420: '排位赛 单排/双排',
+    430: '匹配模式 (盲选)',
+    440: '排位赛 灵活组排',
+    450: '极地大乱斗',
+    490: '快速匹配',
+    1700: '斗魂竞技场',
+    1900: '无限火力',
+};
+
+const getModeName = (match) => {
+    const qId = match.QueueId ?? match.queueId;
+    if (qId && queueMap[qId]) return queueMap[qId];
+    const mode = match.GameMode ?? match.gameMode;
+    if (mode === 'ARAM') return '极地大乱斗';
+    if (mode === 'CLASSIC') return '召唤师峡谷';
+    if (mode === 'CHERRY') return '斗魂竞技场';
+    return mode || '未知模式';
+};
 
 const openDetails = async (matchId) => {
     if (!matchId) return;
