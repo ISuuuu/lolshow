@@ -194,6 +194,7 @@ const queueMap = {
     490: '快速匹配',
     1700: '斗魂竞技场',
     1900: '无限火力',
+    2400: '海克斯大乱斗',
 };
 
 const getModeName = (match) => {
@@ -203,6 +204,7 @@ const getModeName = (match) => {
     if (mode === 'ARAM') return '极地大乱斗';
     if (mode === 'CLASSIC') return '召唤师峡谷';
     if (mode === 'CHERRY') return '斗魂竞技场';
+    if (mode === 'KIWI') return '海克斯大乱斗';
     return mode || '未知模式';
 };
 
