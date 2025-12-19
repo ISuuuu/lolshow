@@ -21,6 +21,11 @@ export default {
     return apiClient.get('/history', { params });
   },
 
+  // 获取单局详情 (10人数据)
+  getMatchDetails(matchId) {
+    return apiClient.get(`/match/${matchId}`);
+  },
+
   // 获取 Data Dragon 版本 (可选，用于获取最新版本号)
   getVersions() {
     return axios.get('https://ddragon.leagueoflegends.com/api/versions.json');

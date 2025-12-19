@@ -1,14 +1,17 @@
-# 英雄联盟战绩展示系统需求文档
+# 英雄联盟战绩展示系统需求文档 (v2.0 - 正规化架构版)
 
 ## 1. 项目概述
 
-本项目旨在开发一个全栈应用，用于展示玩家的英雄联盟对局战绩。其核心思想是利用本地 LCU API 获取玩家的实时或历史对局数据，通过自定义后端 API 存储和管理这些数据，最终由前端页面进行美观的展示。
+本项目旨在开发一个全栈应用，用于展示玩家的英雄联盟对局战绩。
+**v2.0 核心变更：** 从单人单局记录升级为**全量对局记录**。系统将存储每一局比赛的完整信息（包括红蓝双方共 10 名玩家的详细数据），以支持更深度的复盘、数据分析和“上帝视角”查看。
 
 ### 系统架构概览
 
-1.  **本地数据采集脚本 (Python/Node/C#):** 运行在玩家本地，通过 LCU API 获取对局数据。
-2.  **后端 API (.NET Core):** 接收本地脚本上传的数据，并提供查询接口给前端。
-3.  **前端页面 (React/Vue/Angular等):** 调用后端 API 获取数据，渲染战绩列表和对局详情。
+1.  **本地数据采集脚本 (Python/Node/C#):** 运行在玩家本地，通过 LCU API 获取 **完整的对局结算数据 (End of Game)**。
+2.  **后端 API (.NET Core):** 接收并解析复杂对局数据，采用**主从表 (1:N)** 结构存储。
+3.  **前端页面 (React/Vue/Angular等):**
+    *   **列表页:** 展示概要战绩。
+    *   **详情页:** 展示 10 人详细数据对比（伤害、经济、出装等）。
 
 ## 2. 后端 API (基于 .NET Core)
 
@@ -16,207 +19,141 @@
 
 所有与英雄联盟战绩相关控制器代码将位于：`E:\Code\myWebAPI\Controllers\lol\`
 
-### 2.2 核心数据模型
+### 2.2 核心数据模型 (Schema Design)
 
-需要在 `E:\Code\myWebAPI\Models\` 目录下创建 `LolMatch.cs` 文件，定义对局的核心数据结构。
+需要在 `E:\Code\myWebAPI\Models\` 目录下创建/重构以下两个模型。
 
-**`LolMatch.cs` 预期的字段如下：**
+#### 2.2.1 主表：对局元数据 (`Match.cs`)
 
-| 字段名         | 类型       | 描述                                       | 备注                                     |
-| :------------- | :--------- | :----------------------------------------- | :--------------------------------------- |
-| `Id`           | `int`      | 主键，数据库自增 ID                        |                                          |
-| `MatchId`      | `long`     | 英雄联盟对局的唯一 ID                      | 用于避免重复插入                         |
-| `GameMode`     | `string`   | 游戏模式 (如 "ARAM", "CLASSIC")            |                                          |
-| `SummonerName` | `string`   | 玩家的召唤师名称                           | 用于区分不同玩家的战绩                   |
-| `ChampionId`   | `int`      | 使用英雄的数字 ID                          | 用于前端通过 Data Dragon 获取英雄头像    |
-| `ChampionName` | `string`   | 使用英雄的英文名                           | 用于前端通过 Data Dragon 获取英雄头像    |
-| `Kills`        | `int`      | 击杀数                                     |                                          |
-| `Deaths`       | `int`      | 死亡数                                     |                                          |
-| `Assists`      | `int`      | 助攻数                                     |                                          |
-| `Win`          | `bool`     | 是否胜利                                   | `true` 为胜利，`false` 为失败            |
-| `IsMVP`        | `bool`     | 是否为 MVP                                 |                                          |
-| `IsSVP`        | `bool`     | 是否为 SVP                                 |                                          |
-| `GameDate`     | `DateTime` | 对局结束时间                               |                                          |
-| `GameDuration` | `TimeSpan` | 对局持续时间                               |                                          |
-| `TotalDamageDealtToChampions` | `int` | 对英雄造成的总伤害                     | 可选，但通常用于展示                     |
-| `TotalMinionsKilled` | `int` | 总补刀数                                 | 可选                                     |
-| `ItemIds`      | `string`   | 装备 ID 列表 (例如 "3078,3158,1001...") | 逗号分隔的字符串，用于前端 Data Dragon   |
-| `GameVersion`  | `string`   | 游戏版本号 (例如 "13.24.1")                | 用于前端 Data Dragon 拼接正确的资源 URL |
+存储一场比赛的公共信息，不包含具体玩家表现。
+
+| 字段名 | 类型 | 描述 | 备注 |
+| :--- | :--- | :--- | :--- |
+| `MatchId` | `long` | **[Key, DatabaseGenerated(None)]** Riot 对局 ID | 唯一标识，不自增 |
+| `GameMode` | `string` | 游戏模式 | e.g., "ARAM", "CLASSIC" |
+| `GameType` | `string` | 游戏类型 | e.g., "MATCHED_GAME" |
+| `QueueId` | `int` | 队列 ID | 420(排位), 450(大乱斗) |
+| `GameDuration` | `long` | 游戏持续秒数 | |
+| `GameCreation` | `DateTime` | 游戏开始时间 | |
+| `GameVersion` | `string` | 游戏版本 | e.g., "13.24.1" |
+| `Participants` | `List<MatchParticipant>` | **导航属性** | 1对多关系 |
+
+#### 2.2.2 从表：玩家详情 (`MatchParticipant.cs`)
+
+存储单场比赛中单个玩家的详细数据。每场比赛会有 10 条记录关联到同一个 `MatchId`。
+
+| 字段名 | 类型 | 描述 | 备注 |
+| :--- | :--- | :--- | :--- |
+| `Id` | `int` | **[Key]** 自增主键 | |
+| `MatchId` | `long` | **外键** | 关联 `Match.MatchId` |
+| `SummonerName` | `string` | 召唤师名称 | |
+| `Puuid` | `string` | Riot 全局唯一 ID | (可选) 比名字更稳定 |
+| `TeamId` | `int` | 队伍 ID | 100(蓝方), 200(红方) |
+| `ChampionId` | `int` | 英雄 ID | |
+| `ChampionName` | `string` | 英雄英文名 | |
+| **基础战绩** | | | |
+| `Win` | `bool` | 是否胜利 | |
+| `Kills` | `int` | 击杀 | |
+| `Deaths` | `int` | 死亡 | |
+| `Assists` | `int` | 助攻 | |
+| **战斗数据** | | | |
+| `TotalDamageDealtToChampions` | `int` | 对英雄总伤害 | |
+| `TotalDamageTaken` | `int` | 承受伤害 | |
+| **经济与发育** | | | |
+| `GoldEarned` | `int` | 总金币 | |
+| `TotalMinionsKilled` | `int` | 补刀数 | |
+| **装备** | | | |
+| `Item0` ~ `Item6` | `int` | 7个装备栏 ID | 建议直接定义7个字段，或存逗号分隔字符串 |
+| `VisionScore` | `int` | 视野得分 | (可选) |
 
 ### 2.3 API 接口设计
 
-将在 `Controllers/lol/` 目录下创建 `LolController.cs`，实现以下 API 接口。
+将在 `Controllers/lol/` 目录下更新 `LolController.cs`。
 
-#### 2.3.1 对局数据上传接口
+#### 2.3.1 对局数据上传接口 (Refactored)
 
 *   **HTTP 方法:** `POST`
 *   **路径:** `/api/lol/upload`
-*   **描述:** 接收本地脚本上传的单局对局数据。
-*   **请求体 (Request Body):** JSON 格式，与 `LolMatch` 模型字段对应 (不包含 `Id` 字段)。
+*   **描述:** 接收包含完整 10 人数据的复杂对象。
+*   **请求体 (示例结构):**
     ```json
     {
-        "MatchId": 1234567890,
-        "GameMode": "ARAM",
-        "SummonerName": "YourSummonerName",
-        "ChampionId": 81,
-        "ChampionName": "Ezreal",
-        "Kills": 15,
-        "Deaths": 5,
-        "Assists": 10,
-        "Win": true,
-        "IsMVP": true,
-        "IsSVP": false,
-        "GameDate": "2025-12-18T20:00:00Z",
-        "GameDuration": "00:25:30",
-        "TotalDamageDealtToChampions": 25000,
-        "TotalMinionsKilled": 100,
-        "ItemIds": "3078,3158,3004,3035,3046,3142",
-        "GameVersion": "13.24.1"
+        "matchInfo": {
+            "matchId": 1234567890,
+            "gameMode": "ARAM",
+            "gameCreation": "2025-12-19T20:00:00Z",
+            "gameDuration": 1500,
+            "gameVersion": "13.24.1"
+        },
+        "participants": [
+            { "summonerName": "Me", "teamId": 100, "championId": 81, "kills": 10 ... },
+            { "summonerName": "Teammate1", "teamId": 100, "championId": 1, "kills": 2 ... },
+            // ... 共10人
+        ]
     }
     ```
-*   **响应 (Response):**
-    *   `200 OK`: 上传成功或对局已存在。
-        ```json
-        { "message": "Match data processed successfully.", "isNewMatch": true }
-        ```
-    *   `400 Bad Request`: 请求数据格式错误。
-    *   `500 Internal Server Error`: 服务器内部错误。
+*   **逻辑:** 
+    1.  检查 `MatchId` 是否存在。
+    2.  如果不存在，开启事务。
+    3.  插入 `Match` 记录。
+    4.  遍历并插入 10 条 `MatchParticipant` 记录。
+    5.  提交事务。
 
-*   **逻辑:**
-    1.  接收 JSON 数据并反序列化为 `LolMatch` 对象。
-    2.  根据 `MatchId` 检查数据库中是否已存在该对局。
-    3.  如果不存在，则将数据保存到数据库。
-    4.  返回相应的成功或失败信息。
-
-#### 2.3.2 对局历史查询接口
+#### 2.3.2 历史战绩列表查询 (Refactored)
 
 *   **HTTP 方法:** `GET`
 *   **路径:** `/api/lol/history`
-*   **描述:** 提供给前端查询玩家对局历史记录。
-*   **查询参数 (Query Parameters):**
-    *   `page` (可选, `int`, 默认 1): 页码。
-    *   `pageSize` (可选, `int`, 默认 10): 每页数量。
-    *   `gameMode` (可选, `string`): 按游戏模式过滤 (例如 "ARAM")。
-    *   `summonerName` (必选, `string`): 查询哪个玩家的战绩。
-*   **响应 (Response):**
-    *   `200 OK`: 返回分页后的对局列表。
-        ```json
-        {
-            "page": 1,
-            "pageSize": 10,
-            "totalMatches": 100,
-            "totalPages": 10,
-            "matches": [
-                {
-                    "Id": 1,
-                    "MatchId": 1234567890,
-                    "GameMode": "ARAM",
-                    "SummonerName": "YourSummonerName",
-                    "ChampionId": 81,
-                    "ChampionName": "Ezreal",
-                    "Kills": 15,
-                    "Deaths": 5,
-                    "Assists": 10,
-                    "Win": true,
-                    "IsMVP": true,
-                    "IsSVP": false,
-                    "GameDate": "2025-12-18T20:00:00Z",
-                    "GameDuration": "00:25:30",
-                    "TotalDamageDealtToChampions": 25000,
-                    "TotalMinionsKilled": 100,
-                    "ItemIds": "3078,3158,3004,3035,3046,3142",
-                    "GameVersion": "13.24.1"
-                },
-                // ... 其他对局
-            ]
-        }
-        ```
-    *   `400 Bad Request`: 查询参数错误。
-    *   `500 Internal Server Error`: 服务器内部错误。
+*   **查询参数:** `summonerName`, `page`, `pageSize`.
+*   **逻辑:** 
+    *   联表查询 (`Join`): `Match` JOIN `MatchParticipant`.
+    *   **过滤条件:** `MatchParticipant.SummonerName == summonerName`.
+    *   **返回数据:** 返回 `Match` 信息 + **该玩家自己** 的 `MatchParticipant` 信息 (作为列表概览)。
 
-*   **逻辑:**
-    1.  根据 `summonerName` 过滤对局。
-    2.  根据 `gameMode` (如果提供) 进一步过滤。
-    3.  对结果进行分页和排序 (例如按 `GameDate` 倒序)。
-    4.  返回分页数据和总数。
+#### 2.3.3 单局详情查询 (New)
+
+*   **HTTP 方法:** `GET`
+*   **路径:** `/api/lol/match/{matchId}`
+*   **描述:** 获取指定对局的完整 10 人数据。
+*   **逻辑:** 
+    1.  查询 `Match` 表获取基础信息。
+    2.  查询 `MatchParticipant` 表获取 `Where MatchId == matchId` 的所有记录。
+    3.  将 10 人数据按 `TeamId` 分组返回。
 
 ## 3. 数据库集成
 
-### 3.1 数据库上下文更新
-
-在 `E:\Code\myWebAPI\Data\ApplicationDbContext.cs` 中，需要添加一个 `DbSet` 来管理 `LolMatch` 实体：
+### 3.1 DbContext 更新
 
 ```csharp
 public class ApplicationDbContext : DbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+    // ...
+    public DbSet<Match> Matches { get; set; }
+    public DbSet<MatchParticipant> MatchParticipants { get; set; }
 
-    // ... 其他 DbSet
-    public DbSet<LolMatch> LolMatches { get; set; } // 添加这一行
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        
+        // 配置一对多关系
+        modelBuilder.Entity<Match>()
+            .HasMany(m => m.Participants)
+            .WithOne()
+            .HasForeignKey(p => p.MatchId);
+    }
 }
 ```
 
-### 3.2 数据库迁移
+## 4. 前端展示逻辑 (Data Dragon)
 
-完成 `LolMatch.cs` 和 `ApplicationDbContext.cs` 的修改后，需要使用 Entity Framework Core 的迁移功能来更新数据库模式：
+保持 v1.0 逻辑不变。
+*   英雄头像: `.../img/champion/{ChampionName}.png`
+*   装备图标: `.../img/item/{ItemId}.png`
 
-1.  **添加迁移:** 在项目根目录 (myWebAPI.csproj 所在目录) 执行 PowerShell 命令
-    ```powershell
-    dotnet ef migrations add AddLolMatchTable
-    ```
-2.  **更新数据库:** 
-    ```powershell
-    dotnet ef database update
-    ```
-    这将会在你的数据库中创建 `LolMatches` 表。
+后端只需返回 ID 和 Name，前端负责拼接 URL。
 
-## 4. 英雄/装备图标处理 (Data Dragon)
+## 5. 开发步骤建议
 
-**重要说明：** 绝对不要将图片文件直接存储到数据库中。这样做会导致数据库臃肿、维护困难且效率低下。
-
-### 4.1 核心思想
-
-后端数据库只存储英雄、装备、召唤师技能等的 **ID** 或 **英文名称**。前端通过这些 ID/名称，结合 Riot 官方提供的 **Data Dragon** 静态资源服务，动态拼接出图片 URL 并进行加载。
-
-### 4.2 Data Dragon URL 规则
-
-以下是常用的 Data Dragon 资源 URL 格式。前端需要根据 `GameVersion`、`ChampionName` (或 `ChampionId`) 和 `ItemId` 动态生成。
-
-*   **Data Dragon 版本列表:** `https://ddragon.leagueoflegends.com/api/versions.json` (可以获取最新的版本号)
-*   **英雄头像:** 
-    `https://ddragon.leagueoflegends.com/cdn/{版本号}/img/champion/{英雄英文名}.png`
-    *   **示例:** `https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/Ezreal.png`
-*   **装备图标:** 
-    `https://ddragon.leagueoflegends.com/cdn/{版本号}/img/item/{装备ID}.png`
-    *   **示例:** `https://ddragon.leagueoflegends.com/cdn/13.24.1/img/item/3078.png` (贪欲九头蛇)
-*   **召唤师技能图标:** 
-    `https://ddragon.leagueoflegends.com/cdn/{版本号}/img/spell/{召唤师技能英文名}.png`
-    *   **示例:** `https://ddragon.leagueoflegends.com/cdn/13.24.1/img/spell/SummonerFlash.png`
-
-### 4.3 优势
-
-*   **数据库轻量化:** 只存储少量 ID 数据。
-*   **自动更新:** Riot 更新 Data Dragon 后，只需更新前端使用的版本号，即可自动获取最新图标。
-*   **CDN 加速:** 图片从 Riot 的全球 CDN 加载，速度快且减轻你的服务器负担。
-
-## 5. 本地 LCU API 数据采集脚本 (简要说明)
-
-这部分不属于当前后端项目范围，但作为整个系统的一部分，其逻辑简述如下：
-
-1.  **查找 LCU `lockfile`:** 通常位于游戏安装目录下的 `Riot Games\League of Legends\lockfile`，包含 LCU 的端口号和认证密码。
-2.  **连接 LCU API:** 使用 `https` 和从 `lockfile` 获取的 `port` 和 `password` (作为 `Basic Auth` 凭证) 连接 LCU 的 API。
-3.  **获取对局数据:** 
-    *   **当前对局:** `/liveclientdata/allgamedata` (游戏进行中数据)
-    *   **历史对局:** `/lol-match-history/v1/products/lol/current-summoner/matches` (最近N局对局列表)
-4.  **数据解析与清洗:** 从 LCU API 返回的 JSON 中提取所需的字段，将其映射到后端 `LolMatch` 模型。
-5.  **调用后端 API:** 将清洗后的数据以 `POST` 请求发送到 `/api/lol/upload` 接口。
-
-## 6. 后续开发步骤建议
-
-1.  **定义 `LolMatch` 模型:** 在 `Models` 文件夹中创建 `LolMatch.cs` 并添加上述字段。
-2.  **更新 `ApplicationDbContext`:** 在 `Data/ApplicationDbContext.cs` 中添加 `DbSet<LolMatch>`。
-3.  **生成并应用数据库迁移:** 使用 `dotnet ef migrations add` 和 `dotnet ef database update` 命令。
-4.  **创建 `LolController.cs`:** 在 `Controllers/lol/` 中创建控制器，并实现 `POST /api/lol/upload` 和 `GET /api/lol/history` 接口的初步逻辑。
-5.  **单元测试 (推荐):** 为控制器和数据服务编写单元测试以确保功能正确。
-
-希望这份文档能帮助你顺利启动项目！
+1.  **清理旧代码:** 备份并移除旧的 `LolMatch.cs` 和相关迁移。
+2.  **创建新模型:** 定义 `Match` 和 `MatchParticipant` 类。
+3.  **数据库迁移:** 执行 `add-migration RefactorLolSchema` 和 `database update`。
+4.  **重写 Controller:** 实现上述新的 API 逻辑。
