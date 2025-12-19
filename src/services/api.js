@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: '/api/lol', // 使用相对路径，触发 Vite 代理
+  baseURL: 'https://aiapi.369900.xyz/api/lol',
   headers: {
     'Content-Type': 'application/json',
   },
