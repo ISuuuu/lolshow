@@ -11,7 +11,7 @@ import MatchHistory from './components/MatchHistory.vue'
       <MatchHistory />
     </main>
     <footer class="app-footer">
-      <p>Powered by Local LCU API & Data Dragon</p>
+      <p>Powered by Local LCU API(Seraphine) & Data Dragon</p>
     </footer>
   </div>
 </template>

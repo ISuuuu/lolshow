@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'https://aiapi.369900.xyz/api/lol',
+  baseURL: '/api/lol',
   headers: {
     'Content-Type': 'application/json',
   },

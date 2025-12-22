@@ -824,6 +824,7 @@ onMounted(async () => {
 .kda {
     font-size: 1.1rem;
     font-weight: bold;
+    white-space: nowrap;
 }
 .kda .deaths { color: #f44336; }
 
@@ -973,7 +974,7 @@ onMounted(async () => {
 .champion-info { flex: 1; display: flex; justify-content: flex-start; padding-left: 5px; }
 .champion-icon-wrapper { width: 36px; height: 36px; } /* Smaller icon */
 .champion-icon { border-radius: 50%; width: 100%; height: 100%; border: 2px solid #333; }
-.kda-stats { width: 90px; text-align: right; font-size: 0.9rem; font-weight: bold; letter-spacing: 0.5px; }
+.kda-stats { min-width: 90px; text-align: right; font-size: 0.9rem; font-weight: bold; letter-spacing: 0.5px; flex-shrink: 0; white-space: nowrap; }
 
 .pagination {
     display: flex;
@@ -1117,6 +1118,7 @@ onMounted(async () => {
     color: #ccc; 
     font-family: monospace; 
     line-height: 1;
+    white-space: nowrap;
 }
 .kda-text .deaths { color: #f44336; }
 .p-items-row { 
