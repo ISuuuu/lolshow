@@ -52,18 +52,15 @@
             @click="openDetails(match.MatchId || match.matchId)"
           >
             <div class="match-info">
-              <div class="game-meta">
-                <span class="mode">{{ getModeName(match) }}</span>
-                <span class="date">{{ formatDate(match.GameCreation ?? match.gameCreation ?? match.GameDate ?? match.gameDate) }}</span>
-                <span class="result" :class="{ 'win-text': isWin(match), 'loss-text': !isWin(match) }">
-                  {{ isWin(match) ? '胜' : '负' }}
-                </span>
-              </div>
-              
               <div class="champion-info">
                  <div class="champion-icon-wrapper">
                     <img :src="getChampionIcon(match)" :alt="match.ChampionName || match.championName" class="champion-icon" />
                  </div>
+              </div>
+
+              <div class="game-meta">
+                <span class="mode">{{ getModeName(match) }}</span>
+                <span class="date">{{ formatOnlyDate(match.GameCreation ?? match.gameCreation ?? match.GameDate ?? match.gameDate) }}</span>
               </div>
 
               <div class="kda-stats">
@@ -102,17 +99,27 @@
         
         <div v-else-if="selectedMatchDetails" class="details-container">
             <div class="details-header" v-if="selectedMatchDetails.matchInfo">
-               <h2>{{ selectedMatchDetails.matchInfo.gameMode || selectedMatchDetails.matchInfo.GameMode }}</h2>
-               <div class="meta-right">
-                   <span class="detail-date">{{ formatDate(selectedMatchDetails.matchInfo.gameCreation || selectedMatchDetails.matchInfo.GameCreation) }}</span>
-                   <span class="detail-duration">{{ formatDuration(selectedMatchDetails.matchInfo.gameDuration || selectedMatchDetails.matchInfo.GameDuration) }}</span>
+               <div class="detail-item">
+                   <span class="d-label">时间</span>
+                   <span class="d-value">{{ formatDate(selectedMatchDetails.matchInfo.gameCreation || selectedMatchDetails.matchInfo.GameCreation) }}</span>
+               </div>
+               <div class="detail-item">
+                   <span class="d-label">类型</span>
+                   <span class="d-value">{{ getModeName(selectedMatchDetails.matchInfo) }}</span>
+               </div>
+               <div class="detail-item">
+                   <span class="d-label">比赛时长</span>
+                   <span class="d-value">{{ formatDuration(selectedMatchDetails.matchInfo.gameDuration || selectedMatchDetails.matchInfo.GameDuration) }}</span>
+               </div>
+               <div class="detail-item">
+                   <span class="d-label">击杀</span>
+                   <span class="d-value">{{ getKillScore(selectedMatchDetails) }}</span>
                </div>
             </div>
 
             <div class="teams-wrapper">
                 <!-- Blue Team -->
                 <div class="team-column blue-team">
-                    <h3 class="team-title">蓝队 (Team 100)</h3>
                     <div v-for="p in getTeam(selectedMatchDetails, 100)" :key="p.SummonerName || p.summonerName" class="p-row" :class="{ 'is-me': (p.SummonerName || p.summonerName) === summonerName }">
                         <div class="p-champ">
                             <img :src="getChampionIcon(p)" class="p-icon" />
@@ -123,7 +130,15 @@
                             <div class="p-kda-items">
                                 <span class="kda-text">{{ p.Kills ?? p.kills }}/<span class="deaths">{{ p.Deaths ?? p.deaths }}</span>/{{ p.Assists ?? p.assists }}</span>
                                 <div class="p-items-row">
-                                     <img v-for="(itemId, idx) in parseItemIds(p)" :key="idx" :src="getItemIcon(itemId)" class="p-item-icon-small" />
+                                     <img 
+                                        v-for="(itemId, idx) in parseItemIds(p)" 
+                                        :key="idx" 
+                                        :src="getItemIcon(itemId)" 
+                                        class="p-item-icon-small" 
+                                        @mouseenter="showItemTooltip(itemId, $event)"
+                                        @mousemove="moveTooltip($event)"
+                                        @mouseleave="hideTooltip"
+                                     />
                                 </div>
                             </div>
                         </div>
@@ -136,7 +151,6 @@
 
                 <!-- Red Team -->
                 <div class="team-column red-team">
-                    <h3 class="team-title">红队 (Team 200)</h3>
                     <div v-for="p in getTeam(selectedMatchDetails, 200)" :key="p.SummonerName || p.summonerName" class="p-row" :class="{ 'is-me': (p.SummonerName || p.summonerName) === summonerName }">
                         <div class="p-champ">
                             <img :src="getChampionIcon(p)" class="p-icon" />
@@ -147,7 +161,15 @@
                              <div class="p-kda-items">
                                 <span class="kda-text">{{ p.Kills ?? p.kills }}/<span class="deaths">{{ p.Deaths ?? p.deaths }}</span>/{{ p.Assists ?? p.assists }}</span>
                                 <div class="p-items-row">
-                                     <img v-for="(itemId, idx) in parseItemIds(p)" :key="idx" :src="getItemIcon(itemId)" class="p-item-icon-small" />
+                                     <img 
+                                        v-for="(itemId, idx) in parseItemIds(p)" 
+                                        :key="idx" 
+                                        :src="getItemIcon(itemId)" 
+                                        class="p-item-icon-small" 
+                                        @mouseenter="showItemTooltip(itemId, $event)"
+                                        @mousemove="moveTooltip($event)"
+                                        @mouseleave="hideTooltip"
+                                     />
                                 </div>
                             </div>
                         </div>
@@ -160,6 +182,17 @@
             </div>
         </div>
       </div>
+    </div>
+
+    <!-- Global Item Tooltip -->
+    <div v-if="tooltip.show" class="item-tooltip" :style="{ top: tooltip.y + 'px', left: tooltip.x + 'px' }">
+        <div class="tooltip-header" v-if="tooltip.data">
+            <span class="tooltip-name">{{ tooltip.data.name }}</span>
+            <span class="tooltip-gold" v-if="tooltip.data.gold">
+                <span class="gold-icon">💰</span> {{ tooltip.data.gold.total }}
+            </span>
+        </div>
+        <div class="tooltip-desc" v-if="tooltip.data" v-html="tooltip.data.description"></div>
     </div>
   </div>
 </template>
@@ -174,12 +207,43 @@ const loading = ref(false);
 const error = ref(null);
 const page = ref(1);
 const totalPages = ref(1);
-const pageSize = ref(7);
+const pageSize = ref(9);
 const selectedGameMode = ref('');
 const gameVersion = ref('14.23.1'); // 更新默认版本
 const championMap = ref({});
+const itemMap = ref({});
 
 const hasSearched = ref(false);
+
+// Tooltip Logic
+const tooltip = ref({
+    show: false,
+    data: null,
+    x: 0,
+    y: 0
+});
+
+const showItemTooltip = (itemId, event) => {
+    if (!itemId || itemId === '0' || !itemMap.value[itemId]) return;
+    
+    const item = itemMap.value[itemId];
+    tooltip.value = {
+        show: true,
+        data: item,
+        x: event.clientX + 15,
+        y: event.clientY + 15
+    };
+};
+
+const moveTooltip = (event) => {
+    if (!tooltip.value.show) return;
+    tooltip.value.x = event.clientX + 15;
+    tooltip.value.y = event.clientY + 15;
+};
+
+const hideTooltip = () => {
+    tooltip.value.show = false;
+};
 
 // Match Details Logic
 const selectedMatchDetails = ref(null);
@@ -206,6 +270,38 @@ const getModeName = (match) => {
     if (mode === 'CHERRY') return '斗魂竞技场';
     if (mode === 'KIWI') return '海克斯大乱斗';
     return mode || '未知模式';
+};
+
+const getKillScore = (details) => {
+    if (!details) return '0/0';
+    // Find my team
+    let myTeamId = 100; // default
+    let parts = [];
+    
+    // Normalize participants list
+    if (Array.isArray(details.participants)) parts = details.participants;
+    else if (Array.isArray(details)) parts = details;
+    else if (details.team100 && details.team200) parts = [...details.team100, ...details.team200];
+
+    // Try to find current summoner to determine side
+    if (summonerName.value) {
+        const me = parts.find(p => (p.SummonerName || p.summonerName)?.toLowerCase() === summonerName.value.toLowerCase());
+        if (me) {
+            myTeamId = me.TeamId || me.teamId;
+        }
+    }
+
+    let myKills = 0;
+    let enemyKills = 0;
+
+    parts.forEach(p => {
+        const k = Number(p.Kills ?? p.kills ?? 0);
+        const tId = p.TeamId ?? p.teamId;
+        if (tId === myTeamId) myKills += k;
+        else enemyKills += k;
+    });
+
+    return `${myKills}/${enemyKills}`;
 };
 
 const openDetails = async (matchId) => {
@@ -298,6 +394,17 @@ const fetchChampionData = async (version) => {
     }
 };
 
+const fetchItemData = async (version) => {
+    try {
+        console.log(`[DataDragon] Fetching item data for version ${version}...`);
+        const response = await api.getItemData(version);
+        itemMap.value = response.data.data;
+        console.log(`[DataDragon] Loaded item map with ${Object.keys(itemMap.value).length} entries.`);
+    } catch (e) {
+        console.error("Failed to load item data:", e);
+    }
+};
+
 // ... (fetchMatches, changePage, etc. remain the same) ...
 const fetchMatches = async () => {
     if (!summonerName.value) return;
@@ -322,6 +429,8 @@ const fetchMatches = async () => {
                 gameVersion.value = matches.value[0].GameVersion;
                 console.log("Updated Data Dragon version from match data:", gameVersion.value);
             }
+            // Auto-select the first match details
+            openDetails(matches.value[0].MatchId || matches.value[0].matchId);
         }
 
     } catch (err) {
@@ -343,6 +452,12 @@ const fetchMatches = async () => {
 const changePage = (newPage) => {
     page.value = newPage;
     fetchMatches();
+};
+
+const formatOnlyDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
 };
 
 const formatDate = (dateString) => {
@@ -498,6 +613,7 @@ onMounted(async () => {
         console.warn("Could not fetch ddragon versions, using default.", e);
     }
     fetchChampionData(gameVersion.value);
+    fetchItemData(gameVersion.value);
 });
 </script>
 
@@ -509,7 +625,7 @@ onMounted(async () => {
 }
 
 .header {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem; /* Reduced from 2rem */
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -628,7 +744,7 @@ onMounted(async () => {
 .match-card {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 12px;
-    padding: 15px;
+    padding: 12px 10px; /* Reduced side padding */
     display: flex;
     align-items: center;
     border-left: 6px solid #666;
@@ -651,11 +767,10 @@ onMounted(async () => {
 }
 
 .match-info {
-    display: grid;
-    grid-template-columns: 100px 1fr 120px 1fr;
-    align-items: center;
+    display: flex;
+    align-items: center; /* Vertically center */
     width: 100%;
-    gap: 15px;
+    gap: 15px; /* Consistent gap between elements */
 }
 
 .game-meta {
@@ -663,6 +778,7 @@ onMounted(async () => {
     flex-direction: column;
     font-size: 0.85rem;
     color: #aaa;
+    min-width: 100px; /* Ensure minimum width for readability */
 }
 
 .mode {
@@ -679,6 +795,7 @@ onMounted(async () => {
     flex-direction: column;
     align-items: center;
     gap: 5px;
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .champion-icon-wrapper {
@@ -701,7 +818,7 @@ onMounted(async () => {
 .kda-stats {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start; /* Align KDA text to left */
 }
 
 .kda {
@@ -890,71 +1007,202 @@ onMounted(async () => {
 
 .details-header {
     display: flex;
-    justify-content: space-between;
+    flex-direction: row;
+    justify-content: flex-start; /* Group items together */
+    gap: 30px; /* Reduced gap between groups */
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
+    margin-bottom: 15px;
+    padding: 10px 15px; /* Reduced padding */
     border-bottom: 1px solid #333;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    width: fit-content; /* Only take as much space as needed */
+    min-width: 400px;
 }
-.details-header h2 { margin: 0; font-size: 1.8rem; color: #fff; }
-.meta-right { display: flex; flex-direction: column; align-items: flex-end; font-size: 0.9rem; color: #888; gap: 4px; }
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Align text to the left within items */
+    gap: 2px;
+}
+.d-label {
+    font-size: 0.7rem; /* Smaller font */
+    color: #888;
+    text-transform: uppercase;
+}
+.d-value {
+    font-size: 0.85rem; /* Smaller font */
+    font-weight: bold;
+    color: #e0e0e0;
+}
+.meta-right { display: none; } /* Remove old class if still present */
 
 /* Teams Side-by-Side Layout */
 .teams-wrapper { 
     display: grid; 
     grid-template-columns: 1fr 1fr; /* Two equal columns */
-    gap: 20px; 
+    gap: 10px; /* Reduced gap */
 }
 .team-column {
     min-width: 0; /* Allow shrinking */
 }
 
-.team-title { font-size: 1.1rem; margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 6px; font-weight: bold; letter-spacing: 1px; }
-.blue-team .team-title { color: #4facfe; border-color: rgba(79, 172, 254, 0.3); }
-.red-team .team-title { color: #ff5858; border-color: rgba(255, 88, 88, 0.3); }
-
 .p-row {
     display: grid;
-    grid-template-columns: 64px 1fr 110px; /* Further enlarged for better visibility */
+    grid-template-columns: 60px 1fr 110px;
     align-items: center;
-    gap: 18px;
-    padding: 15px 18px;
-    border-bottom: 1px solid #2a2a2a;
-    background: rgba(255,255,255,0.02);
-    border-radius: 8px;
-    margin-bottom: 8px;
-    transition: background 0.1s;
+    gap: 15px;
+    padding: 10px 15px;
+    
+    /* Standardize border box model */
+    border: 1px solid transparent; /* Placeholder for top/right/bottom borders */
+    border-bottom-color: rgba(255, 255, 255, 0.05); /* Visible bottom separator */
+    border-left: 4px solid transparent; /* Visible left indicator */
+    
+    border-radius: 4px;
+    margin-bottom: 6px;
+    transition: background 0.1s, border-color 0.1s;
+    box-sizing: border-box; /* Ensure padding and border are included in width/height */
 }
-.p-row:hover { background: rgba(255, 255, 255, 0.05); }
-.p-row.is-me { background: rgba(255, 215, 0, 0.05); border: 1px solid rgba(255, 215, 0, 0.2); }
 
-.p-champ { position: relative; width: 64px; height: 64px; }
+.blue-team .p-row {
+    background: rgba(79, 172, 254, 0.08);
+    border-left-color: rgba(79, 172, 254, 0.5);
+}
+.red-team .p-row {
+    background: rgba(255, 88, 88, 0.08);
+    border-left-color: rgba(255, 88, 88, 0.5);
+}
+
+.p-row:hover { background: rgba(255, 255, 255, 0.12) !important; }
+.p-row.is-me { 
+    background: rgba(255, 215, 0, 0.12) !important; 
+    border-color: rgba(255, 215, 0, 0.3); /* Colors all 4 borders */
+    border-left-color: #ffd700; /* Overrides left border color */
+    border-left-width: 4px; /* Ensures width stays same */
+}
+
+.p-champ { position: relative; width: 56px; height: 56px; } /* Larger avatar (56px) */
 .p-icon { width: 100%; height: 100%; border-radius: 50%; border: 2px solid #222; }
 .p-level { 
-    position: absolute; bottom: -2px; right: -2px; 
-    background: #111; color: #fff; font-size: 0.85rem; 
-    padding: 1px 6px; border-radius: 4px; border: 1px solid #333;
+    position: absolute; bottom: -3px; right: -3px; 
+    background: #111; color: #fff; font-size: 0.8rem; 
+    padding: 1px 5px; border-radius: 4px; border: 1px solid #333;
 }
 
-.p-main-info { display: flex; flex-direction: column; justify-content: center; gap: 6px; overflow: hidden; }
-.p-name { font-weight: bold; font-size: 1.1rem; color: #e0e0e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.p-kda-items { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.kda-text { font-size: 1rem; color: #ccc; font-family: monospace; }
+.p-main-info { 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    gap: 4px; 
+    overflow: hidden; 
+}
+.p-name { 
+    font-weight: bold; 
+    font-size: 1.05rem; 
+    color: #e0e0e0; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    margin-bottom: 2px;
+}
+.p-kda-items { 
+    display: flex; 
+    flex-direction: column; /* Always vertical */
+    align-items: flex-start; 
+    gap: 6px; /* Gap between KDA text and Items row */
+}
+.kda-text { 
+    font-size: 0.95rem; 
+    color: #ccc; 
+    font-family: monospace; 
+    line-height: 1;
+}
 .kda-text .deaths { color: #f44336; }
-.p-items-row { display: flex; gap: 4px; }
-.p-item-icon-small { width: 32px; height: 32px; border-radius: 4px; background: #000; border: 1px solid #333; }
+.p-items-row { 
+    display: flex; 
+    gap: 4px; 
+}
+.p-item-icon-small { width: 30px; height: 30px; border-radius: 4px; background: #000; border: 1px solid #333; } /* Larger items (30px) */
 
 .p-stats-compact { font-size: 0.9rem; color: #888; text-align: right; line-height: 1.5; display: flex; flex-direction: column; justify-content: center; }
 
 @media (max-width: 1000px) {
      /* Stack teams on medium screens if side-by-side is too cramped */
     .teams-wrapper { grid-template-columns: 1fr; }
-    .p-row { grid-template-columns: 64px 1fr 110px; } /* Restore wider grid */
+    .p-row { grid-template-columns: 60px 1fr 110px; }
 }
 
 @media (max-width: 900px) {
     .content-area { flex-direction: column; align-items: center; }
     .content-area.has-selection .left-pane { max-width: 500px; width: 100%; }
     .right-pane { width: 100%; }
+}
+
+/* Item Tooltip */
+.item-tooltip {
+    position: fixed;
+    z-index: 9999;
+    background: rgba(10, 10, 15, 0.95);
+    border: 1px solid #785a28; /* Goldish border */
+    color: #e0e0e0;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    max-width: 300px;
+    pointer-events: none; /* Let mouse pass through */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px);
+}
+
+.tooltip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+}
+
+.tooltip-name {
+    font-weight: bold;
+    color: #00bcd4; /* Cyan title */
+    font-size: 1rem;
+}
+
+.tooltip-gold {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+.tooltip-desc {
+    line-height: 1.4;
+    color: #bbb;
+}
+
+/* Data Dragon HTML Styles */
+:deep(stats) {
+    color: #98fb98; /* Pale green for stats */
+    display: block;
+    margin-bottom: 8px;
+}
+:deep(attention) {
+    color: #ff6b6b;
+    font-weight: bold;
+}
+:deep(passive) {
+    color: #87ceeb; /* Sky blue for passives */
+    font-weight: bold;
+}
+:deep(active) {
+    color: #ffa500; /* Orange for actives */
+    font-weight: bold;
+}
+:deep(unique) {
+    color: #ffd700; /* Gold for unique passives */
+    font-weight: bold;
+}
+:deep(mainText) {
+    display: block;
 }
 </style>

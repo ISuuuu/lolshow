@@ -32,7 +32,12 @@ export default {
   },
 
   // 获取 Data Dragon 英雄数据
-  getChampionData(version, lang = 'en_US') {
+  getChampionData(version, lang = 'zh_CN') {
     return axios.get(`https://ddragon.leagueoflegends.com/cdn/${version}/data/${lang}/champion.json`);
+  },
+
+  // 获取 Data Dragon 装备数据
+  getItemData(version, lang = 'zh_CN') {
+    return axios.get(`https://ddragon.leagueoflegends.com/cdn/${version}/data/${lang}/item.json`);
   }
 };
