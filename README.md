@@ -8,7 +8,7 @@ Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://
 #  反向代理 API 请求到后端
 ~~~
     location /api/ {
-        proxy_pass http://127.0.0.1:3456/;  # 注意结尾的 /
+        proxy_pass http://127.0.0.1:3456;  # 注意结尾的 /,我的api地址都是 api/lol/request ；所以此处去掉/
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
