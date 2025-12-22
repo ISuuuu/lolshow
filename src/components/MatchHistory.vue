@@ -554,7 +554,7 @@ const getChampionIcon = (match) => {
     const url = `https://ddragon.leagueoflegends.com/cdn/${gameVersion.value}/img/champion/${imageId}.png`;
     
     // 只在首次或特定条件下打印，避免列表过长刷屏 (这里为了调试暂时全部打印，或者只打印错误的)
-    console.log(`[Icon] Generated URL: ${url}`);
+    //console.log(`[Icon] Generated URL: ${url}`);
     
     return url;
 };
