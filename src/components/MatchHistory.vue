@@ -127,7 +127,10 @@
                             <div class="p-level">{{ p.ChampLevel || p.champLevel }}</div>
                         </div>
                         <div class="p-main-info">
-                            <div class="p-name" @click="querySummoner(p.SummonerName || p.summonerName)" style="cursor: pointer; text-decoration: underline;">{{ p.SummonerName || p.summonerName }}</div>
+                            <div class="p-name-wrapper">
+                              <div class="p-name" @click="querySummoner(p.SummonerName || p.summonerName)" style="cursor: pointer;">{{ p.SummonerName || p.summonerName }}</div>
+                              <button class="copy-btn" @click="copySummonerName(p.SummonerName || p.summonerName, $event)" title="复制用户名">📋</button>
+                            </div>
                             <div class="p-kda-items">
                                 <span class="kda-text">{{ p.Kills ?? p.kills }}/<span class="deaths">{{ p.Deaths ?? p.deaths }}</span>/{{ p.Assists ?? p.assists }}</span>
                                 <div class="p-items-row">
@@ -158,7 +161,10 @@
                             <div class="p-level">{{ p.ChampLevel || p.champLevel }}</div>
                         </div>
                         <div class="p-main-info">
-                             <div class="p-name" @click="querySummoner(p.SummonerName || p.summonerName)" style="cursor: pointer; text-decoration: underline;">{{ p.SummonerName || p.summonerName }}</div>
+                            <div class="p-name-wrapper">
+                              <div class="p-name" @click="querySummoner(p.SummonerName || p.summonerName)" style="cursor: pointer;">{{ p.SummonerName || p.summonerName }}</div>
+                              <button class="copy-btn" @click="copySummonerName(p.SummonerName || p.summonerName, $event)" title="复制用户名">📋</button>
+                            </div>
                              <div class="p-kda-items">
                                 <span class="kda-text">{{ p.Kills ?? p.kills }}/<span class="deaths">{{ p.Deaths ?? p.deaths }}</span>/{{ p.Assists ?? p.assists }}</span>
                                 <div class="p-items-row">
@@ -357,6 +363,51 @@ const querySummoner = async (targetSummonerName) => {
   
   // 调用现有的查询函数
   await fetchMatches();
+};
+
+const copySummonerName = async (summonerName, event) => {
+  if (!summonerName) return;
+  
+  try {
+    await navigator.clipboard.writeText(summonerName);
+    // 可以添加一个提示，比如临时显示“已复制”
+    console.log(`已复制用户名: ${summonerName}`);
+    
+    // 提供一个简单的视觉反馈
+    if (event && event.target) {
+      const button = event.target;
+      const originalText = button.textContent;
+      button.textContent = '✓';
+      
+      setTimeout(() => {
+        button.textContent = originalText;
+      }, 2000);
+    }
+  } catch (err) {
+    console.error('复制失败:', err);
+    // 降级方案：使用旧的 clipboard API
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = summonerName;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      // 提供一个简单的视觉反馈
+      if (event && event.target) {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = '✓';
+        
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      }
+    } catch (fallbackErr) {
+      console.error('降级复制方案也失败:', fallbackErr);
+    }
+  }
 };
 
 // Search History Logic
@@ -1195,6 +1246,37 @@ onMounted(async () => {
 .tooltip-desc {
     line-height: 1.4;
     color: #bbb;
+}
+
+/* Player Name and Copy Button Styles */
+.p-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.p-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copy-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #aaa;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Data Dragon HTML Styles */
