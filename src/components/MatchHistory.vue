@@ -129,7 +129,7 @@
                         <div class="p-main-info">
                             <div class="p-name-wrapper">
                               <div class="p-name" @click="querySummoner(p.SummonerName || p.summonerName)" style="cursor: pointer;">{{ p.SummonerName || p.summonerName }}</div>
-                              <button class="copy-btn" @click="copySummonerName(p.SummonerName || p.summonerName, $event)" title="复制用户名">📋</button>
+                              <button class="copy-btn" @click.stop="copySummonerName(p.SummonerName || p.summonerName, $event)" title="复制用户名">⎘</button>
                             </div>
                             <div class="p-kda-items">
                                 <span class="kda-text">{{ p.Kills ?? p.kills }}/<span class="deaths">{{ p.Deaths ?? p.deaths }}</span>/{{ p.Assists ?? p.assists }}</span>
@@ -163,7 +163,7 @@
                         <div class="p-main-info">
                             <div class="p-name-wrapper">
                               <div class="p-name" @click="querySummoner(p.SummonerName || p.summonerName)" style="cursor: pointer;">{{ p.SummonerName || p.summonerName }}</div>
-                              <button class="copy-btn" @click="copySummonerName(p.SummonerName || p.summonerName, $event)" title="复制用户名">📋</button>
+                              <button class="copy-btn" @click.stop="copySummonerName(p.SummonerName || p.summonerName, $event)" title="复制用户名">⎘</button>
                             </div>
                              <div class="p-kda-items">
                                 <span class="kda-text">{{ p.Kills ?? p.kills }}/<span class="deaths">{{ p.Deaths ?? p.deaths }}</span>/{{ p.Assists ?? p.assists }}</span>
@@ -1262,21 +1262,31 @@ onMounted(async () => {
 }
 
 .copy-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #aaa;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #888;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.7rem;
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
+  opacity: 0;
+  visibility: hidden;
+  font-size: 0.7rem;
+  line-height: 1;
+  margin-left: 4px;
+}
+
+.p-name-wrapper:hover .copy-btn {
+  opacity: 1;
+  visibility: visible;
 }
 
 .copy-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.4);
+  background: #00bcd4;
+  color: #000;
+  border-color: #00bcd4;
 }
 
 /* Data Dragon HTML Styles */
