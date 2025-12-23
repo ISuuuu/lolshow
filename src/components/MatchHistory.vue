@@ -19,6 +19,7 @@
             <option value="ARAM">极地大乱斗</option>
             <option value="CLASSIC">召唤师峡谷</option>
             <option value="CHERRY">斗魂竞技场</option>
+            <option value="KIWI">海克斯大乱斗</option>
           </select>
         </div>
         
@@ -126,7 +127,7 @@
                             <div class="p-level">{{ p.ChampLevel || p.champLevel }}</div>
                         </div>
                         <div class="p-main-info">
-                            <div class="p-name">{{ p.SummonerName || p.summonerName }}</div>
+                            <div class="p-name" @click="querySummoner(p.SummonerName || p.summonerName)" style="cursor: pointer; text-decoration: underline;">{{ p.SummonerName || p.summonerName }}</div>
                             <div class="p-kda-items">
                                 <span class="kda-text">{{ p.Kills ?? p.kills }}/<span class="deaths">{{ p.Deaths ?? p.deaths }}</span>/{{ p.Assists ?? p.assists }}</span>
                                 <div class="p-items-row">
@@ -157,7 +158,7 @@
                             <div class="p-level">{{ p.ChampLevel || p.champLevel }}</div>
                         </div>
                         <div class="p-main-info">
-                             <div class="p-name">{{ p.SummonerName || p.summonerName }}</div>
+                             <div class="p-name" @click="querySummoner(p.SummonerName || p.summonerName)" style="cursor: pointer; text-decoration: underline;">{{ p.SummonerName || p.summonerName }}</div>
                              <div class="p-kda-items">
                                 <span class="kda-text">{{ p.Kills ?? p.kills }}/<span class="deaths">{{ p.Deaths ?? p.deaths }}</span>/{{ p.Assists ?? p.assists }}</span>
                                 <div class="p-items-row">
@@ -342,6 +343,20 @@ const getTeam = (details, teamId) => {
     
     // Filter by teamId
     return list.filter(p => p.TeamId === teamId || p.teamId === teamId);
+};
+
+const querySummoner = async (targetSummonerName) => {
+  if (!targetSummonerName) return;
+  
+  // 设置当前查询的召唤师名称
+  window.scrollTo({ top: 0, behavior: 'smooth' }); // 滚动到顶部
+  
+  // 重置分页和相关状态
+  page.value = 1;
+  summonerName.value = targetSummonerName;
+  
+  // 调用现有的查询函数
+  await fetchMatches();
 };
 
 // Search History Logic
