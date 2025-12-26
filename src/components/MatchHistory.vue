@@ -323,7 +323,6 @@ const openDetails = async (matchId) => {
         const response = await api.getMatchDetails(matchId);
         const resData = response.data;
         selectedMatchDetails.value = resData.success ? resData.data : resData; 
-        console.log("Match Details Loaded:", selectedMatchDetails.value);
     } catch (e) {
         console.error("Failed to load details", e);
         // alert("无法加载对局详情"); // Optional: less intrusive error handling
@@ -487,10 +486,16 @@ const fetchMatches = async () => {
     try {
         const response = await api.getMatchHistory(summonerName.value, page.value, pageSize.value, selectedGameMode.value);
         const resData = response.data;
-        const data = resData.success ? resData.data : resData;
-
-        matches.value = data.matches || [];
-        totalPages.value = data.totalPages || 1;
+        
+        // 适配新的 API 返回格式: { success: true, data: [...matches], pagination: { totalPages: ... } }
+        if (resData.success !== undefined) {
+             matches.value = resData.data || [];
+             totalPages.value = resData.pagination?.totalPages || 1;
+        } else {
+             // 兼容旧格式 (backup)
+             matches.value = resData.matches || resData.data || [];
+             totalPages.value = resData.totalPages || 1;
+        }
         
         if (matches.value.length > 0) {
             console.log("First match data structure:", matches.value[0]);
