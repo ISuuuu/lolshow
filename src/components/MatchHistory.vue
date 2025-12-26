@@ -321,8 +321,9 @@ const openDetails = async (matchId) => {
 
     try {
         const response = await api.getMatchDetails(matchId);
-        selectedMatchDetails.value = response.data; 
-        console.log("Match Details Loaded:", response.data);
+        const resData = response.data;
+        selectedMatchDetails.value = resData.success ? resData.data : resData; 
+        console.log("Match Details Loaded:", selectedMatchDetails.value);
     } catch (e) {
         console.error("Failed to load details", e);
         // alert("无法加载对局详情"); // Optional: less intrusive error handling
@@ -485,7 +486,9 @@ const fetchMatches = async () => {
 
     try {
         const response = await api.getMatchHistory(summonerName.value, page.value, pageSize.value, selectedGameMode.value);
-        const data = response.data;
+        const resData = response.data;
+        const data = resData.success ? resData.data : resData;
+
         matches.value = data.matches || [];
         totalPages.value = data.totalPages || 1;
         
