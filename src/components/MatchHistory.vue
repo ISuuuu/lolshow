@@ -56,6 +56,8 @@
               <div class="champion-info">
                  <div class="champion-icon-wrapper">
                     <img :src="getChampionIcon(match)" :alt="match.ChampionName || match.championName" class="champion-icon" />
+                    <span v-if="match.IsMvp || match.isMvp" class="badge-overlay badge-mvp">MVP</span>
+                    <span v-else-if="match.IsSvp || match.isSvp" class="badge-overlay badge-svp">SVP</span>
                  </div>
               </div>
 
@@ -125,6 +127,8 @@
                         <div class="p-champ">
                             <img :src="getChampionIcon(p)" class="p-icon" />
                             <div class="p-level">{{ p.ChampLevel || p.champLevel }}</div>
+                            <span v-if="p.IsMvp || p.isMvp" class="badge-overlay badge-mvp">MVP</span>
+                            <span v-else-if="p.IsSvp || p.isSvp" class="badge-overlay badge-svp">SVP</span>
                         </div>
                         <div class="p-main-info">
                             <div class="p-name-wrapper">
@@ -147,6 +151,9 @@
                             </div>
                         </div>
                         <div class="p-stats-compact">
+                            <div title="评分" v-if="p.Score || p.score">
+                                🎖️ <span :class="{ 'high-score': (p.Score || p.score) >= 10 }">{{ (p.Score || p.score).toFixed(1) }}</span>
+                            </div>
                             <div title="伤害">⚔️ {{ (p.TotalDamageDealtToChampions ?? p.totalDamageDealtToChampions)?.toLocaleString() }}</div>
                             <div title="经济">💰 {{ (p.GoldEarned ?? p.goldEarned)?.toLocaleString() }}</div>
                         </div>
@@ -159,6 +166,8 @@
                         <div class="p-champ">
                             <img :src="getChampionIcon(p)" class="p-icon" />
                             <div class="p-level">{{ p.ChampLevel || p.champLevel }}</div>
+                            <span v-if="p.IsMvp || p.isMvp" class="badge-overlay badge-mvp">MVP</span>
+                            <span v-else-if="p.IsSvp || p.isSvp" class="badge-overlay badge-svp">SVP</span>
                         </div>
                         <div class="p-main-info">
                             <div class="p-name-wrapper">
@@ -181,6 +190,9 @@
                             </div>
                         </div>
                         <div class="p-stats-compact">
+                            <div title="评分" v-if="p.Score || p.score">
+                                🎖️ <span :class="{ 'high-score': (p.Score || p.score) >= 10 }">{{ (p.Score || p.score).toFixed(1) }}</span>
+                            </div>
                             <div title="伤害">⚔️ {{ (p.TotalDamageDealtToChampions ?? p.totalDamageDealtToChampions)?.toLocaleString() }}</div>
                             <div title="经济">💰 {{ (p.GoldEarned ?? p.goldEarned)?.toLocaleString() }}</div>
                         </div>
@@ -1066,13 +1078,93 @@ onMounted(async () => {
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    gap: 8px; /* Reduced gap */
+    gap: 12px; /* Increased gap for better breathing room */
 }
-.game-meta { width: 60px; font-size: 0.75rem; display: flex; flex-direction: column; gap: 2px; } /* Compact meta */
-.champion-info { flex: 1; display: flex; justify-content: flex-start; padding-left: 5px; }
-.champion-icon-wrapper { width: 36px; height: 36px; } /* Smaller icon */
+.game-meta { width: 65px; font-size: 0.75rem; display: flex; flex-direction: column; gap: 4px; } /* Slightly wider meta */
+.champion-info { flex: 0 0 auto; display: flex; justify-content: flex-start; }
+.champion-icon-wrapper { 
+    width: 48px; 
+    height: 48px; 
+    position: relative;
+    flex-shrink: 0;
+} /* Increased from 36px */
 .champion-icon { border-radius: 50%; width: 100%; height: 100%; border: 2px solid #333; }
-.kda-stats { min-width: 90px; text-align: right; font-size: 0.9rem; font-weight: bold; letter-spacing: 0.5px; flex-shrink: 0; white-space: nowrap; }
+.kda-stats { flex: 1; text-align: right; font-size: 0.95rem; font-weight: bold; letter-spacing: 0.5px; flex-shrink: 0; white-space: nowrap; }
+
+/* Overlapping Badge Styles */
+.badge-overlay {
+    position: absolute;
+    bottom: -4px; /* Move to bottom */
+    left: 50%;
+    transform: translateX(-50%); /* Center horizontally */
+    font-size: 0.65rem;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: bold;
+    line-height: 1;
+    z-index: 4; /* Above score and icon */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    border: 1px solid rgba(0,0,0,0.5);
+    white-space: nowrap;
+}
+
+.p-score-stat {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+}
+
+.score-label {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.score-value {
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #eee;
+}
+
+.p-champ { 
+    position: relative; 
+    width: 56px; 
+    height: 56px; 
+    margin-bottom: 5px; /* Add slight margin for the bottom badge */
+}
+
+.champion-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.badge-mvp {
+    background: linear-gradient(135deg, #ffd700, #ffb300);
+    color: #000;
+}
+
+.badge-svp {
+    background: linear-gradient(135deg, #e040fb, #7c4dff);
+    color: #fff;
+}
+
+.score-text-micro {
+    font-size: 0.7rem;
+    color: #eee;
+    font-weight: bold;
+    line-height: 1;
+    background: rgba(0,0,0,0.75);
+    padding: 1px 4px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.high-score {
+    color: #00bcd4;
+}
 
 .pagination {
     display: flex;
@@ -1225,7 +1317,37 @@ onMounted(async () => {
 }
 .p-item-icon-small { width: 30px; height: 30px; border-radius: 4px; background: #000; border: 1px solid #333; } /* Larger items (30px) */
 
-.p-stats-compact { font-size: 0.9rem; color: #888; text-align: right; line-height: 1.5; display: flex; flex-direction: column; justify-content: center; }
+.p-stats-compact { 
+    font-size: 0.85rem; 
+    color: #999; 
+    text-align: right; 
+    line-height: 1.6; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    min-width: 110px;
+}
+
+.p-stats-compact div {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+}
+
+.high-score {
+    color: #00bcd4;
+    font-weight: bold;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    padding: 10px 0;
+}
+.page-info { color: #888; font-size: 0.9rem; }
 
 @media (max-width: 1000px) {
      /* Stack teams on medium screens if side-by-side is too cramped */
