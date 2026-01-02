@@ -18,6 +18,19 @@ apiClient.interceptors.request.use(config => {
   return Promise.reject(error);
 });
 
+// Add a response interceptor to handle 401 Unauthorized and 403 Forbidden
+apiClient.interceptors.response.use(response => {
+  return response;
+}, error => {
+  if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    // Dispatch a custom event so the UI can react (e.g., show login modal)
+    window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+  }
+  return Promise.reject(error);
+});
+
 export default {
   // 获取战绩历史
   getMatchHistory(summonerName, page = 1, pageSize = 10, gameMode = '') {

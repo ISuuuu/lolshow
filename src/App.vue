@@ -125,6 +125,14 @@ const closeUserMenu = (e) => {
 onMounted(() => {
   checkLoginStatus()
   document.addEventListener('click', closeUserMenu)
+  
+  // Listen for unauthorized event (token expired)
+  window.addEventListener('auth:unauthorized', () => {
+    // 无论当前状态如何，只要触发了未授权事件，就执行登出并提示
+    handleLogout()
+    showToast('登录已过期，请重新登录', 'error')
+    // openLoginModal() // User requested to not auto-open login modal
+  })
 })
 </script>
 

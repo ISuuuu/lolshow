@@ -1078,9 +1078,9 @@ onMounted(async () => {
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    gap: 12px; /* Increased gap for better breathing room */
+    gap: 5px; /* Further reduced gap */
 }
-.game-meta { width: 65px; font-size: 0.75rem; display: flex; flex-direction: column; gap: 4px; } /* Slightly wider meta */
+.game-meta { width: 60px; font-size: 0.75rem; display: flex; flex-direction: column; gap: 4px; } /* Back to 60px */
 .champion-info { flex: 0 0 auto; display: flex; justify-content: flex-start; }
 .champion-icon-wrapper { 
     width: 48px; 
@@ -1089,7 +1089,7 @@ onMounted(async () => {
     flex-shrink: 0;
 } /* Increased from 36px */
 .champion-icon { border-radius: 50%; width: 100%; height: 100%; border: 2px solid #333; }
-.kda-stats { flex: 1; text-align: right; font-size: 0.95rem; font-weight: bold; letter-spacing: 0.5px; flex-shrink: 0; white-space: nowrap; }
+.kda-stats { flex: 1; text-align: right; font-size: 0.9rem; font-weight: bold; letter-spacing: 0.5px; min-width: 0; white-space: nowrap; margin-right: 2px; }
 
 /* Overlapping Badge Styles */
 .badge-overlay {
