@@ -5,16 +5,16 @@
         <div class="search-bar">
           <input 
             v-model="summonerName" 
-            @keyup.enter="fetchMatches" 
+            @keyup.enter="handleSearch" 
             @focus="showHistory = true"
             @blur="hideHistoryDelayed"
             placeholder="输入召唤师名字..." 
             class="search-input"
           />
-          <button @click="fetchMatches" :disabled="loading" class="search-btn">
+          <button @click="handleSearch" :disabled="loading" class="search-btn">
             {{ loading ? '加载中...' : '查询' }}
           </button>
-          <select v-model="selectedGameMode" @change="fetchMatches" class="mode-select">
+          <select v-model="selectedGameMode" @change="handleSearch" class="mode-select">
             <option value="">所有模式</option>
             <option value="ARAM">极地大乱斗</option>
             <option value="CLASSIC">召唤师峡谷</option>
@@ -434,6 +434,12 @@ const deleteHistory = (index) => {
 const selectHistory = (name) => {
     summonerName.value = name;
     showHistory.value = false;
+    page.value = 1;
+    fetchMatches();
+};
+
+const handleSearch = () => {
+    page.value = 1;
     fetchMatches();
 };
 
