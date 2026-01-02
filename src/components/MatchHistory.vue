@@ -208,11 +208,14 @@
 import { ref, onMounted } from 'vue';
 import api from '../services/api';
 
+const emit = defineEmits(['require-login', 'show-toast']);
+
 const summonerName = ref('');
 const matches = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const page = ref(1);
+const lastValidPage = ref(1);
 const totalPages = ref(1);
 const pageSize = ref(9);
 const selectedGameMode = ref('');
@@ -506,9 +509,20 @@ const fetchMatches = async () => {
             // Auto-select the first match details
             openDetails(matches.value[0].MatchId || matches.value[0].matchId);
         }
+        
+        // Update lastValidPage on success
+        lastValidPage.value = page.value;
 
     } catch (err) {
         console.error("Error fetching matches:", err);
+         if (err.response && err.response.status === 403) {
+            // Revert page to last valid one
+            page.value = lastValidPage.value;
+            emit('show-toast', '请登录以查看更多数据。', 'warning');
+            // Do NOT clear matches or set blocking error
+            return; 
+         }
+
          if (err.response) {
             error.value = `请求失败 (${err.response.status}): ${err.response.data?.message || err.message}`;
         } else if (err.request) {
@@ -674,6 +688,10 @@ const handleImgError = (e) => {
     e.target.style.display = 'none';
     console.warn(`Image failed to load: ${e.target.src}`);
 };
+
+defineExpose({
+  fetchMatches
+});
 
 onMounted(async () => {
     // 可选：获取最新版本号
