@@ -56,8 +56,8 @@
               <div class="champion-info">
                  <div class="champion-icon-wrapper">
                     <img :src="getChampionIcon(match)" :alt="match.ChampionName || match.championName" class="champion-icon" />
-                    <span v-if="match.IsMvp || match.isMvp" class="badge-overlay badge-mvp">MVP</span>
-                    <span v-else-if="match.IsSvp || match.isSvp" class="badge-overlay badge-svp">SVP</span>
+                    <!-- <span v-if="match.IsMvp || match.isMvp" class="badge-overlay badge-mvp">MVP</span> -->
+                    <!-- <span v-else-if="match.IsSvp || match.isSvp" class="badge-overlay badge-svp">SVP</span> -->
                  </div>
               </div>
 
@@ -127,8 +127,8 @@
                         <div class="p-champ">
                             <img :src="getChampionIcon(p)" class="p-icon" />
                             <div class="p-level">{{ p.ChampLevel || p.champLevel }}</div>
-                            <span v-if="p.IsMvp || p.isMvp" class="badge-overlay badge-mvp">MVP</span>
-                            <span v-else-if="p.IsSvp || p.isSvp" class="badge-overlay badge-svp">SVP</span>
+                            <!-- <span v-if="p.IsMvp || p.isMvp" class="badge-overlay badge-mvp">MVP</span> -->
+                            <!-- <span v-else-if="p.IsSvp || p.isSvp" class="badge-overlay badge-svp">SVP</span> -->
                         </div>
                         <div class="p-main-info">
                             <div class="p-name-wrapper">
@@ -151,9 +151,9 @@
                             </div>
                         </div>
                         <div class="p-stats-compact">
-                            <div title="评分" v-if="p.Score || p.score">
+                            <!-- <div title="评分" v-if="p.Score || p.score">
                                 🎖️ <span :class="{ 'high-score': (p.Score || p.score) >= 10 }">{{ (p.Score || p.score).toFixed(1) }}</span>
-                            </div>
+                            </div> -->
                             <div title="伤害">⚔️ {{ (p.TotalDamageDealtToChampions ?? p.totalDamageDealtToChampions)?.toLocaleString() }}</div>
                             <div title="经济">💰 {{ (p.GoldEarned ?? p.goldEarned)?.toLocaleString() }}</div>
                         </div>
@@ -166,8 +166,8 @@
                         <div class="p-champ">
                             <img :src="getChampionIcon(p)" class="p-icon" />
                             <div class="p-level">{{ p.ChampLevel || p.champLevel }}</div>
-                            <span v-if="p.IsMvp || p.isMvp" class="badge-overlay badge-mvp">MVP</span>
-                            <span v-else-if="p.IsSvp || p.isSvp" class="badge-overlay badge-svp">SVP</span>
+                            <!-- <span v-if="p.IsMvp || p.isMvp" class="badge-overlay badge-mvp">MVP</span> -->
+                            <!-- <span v-else-if="p.IsSvp || p.isSvp" class="badge-overlay badge-svp">SVP</span> -->
                         </div>
                         <div class="p-main-info">
                             <div class="p-name-wrapper">
@@ -190,9 +190,9 @@
                             </div>
                         </div>
                         <div class="p-stats-compact">
-                            <div title="评分" v-if="p.Score || p.score">
+                            <!-- <div title="评分" v-if="p.Score || p.score">
                                 🎖️ <span :class="{ 'high-score': (p.Score || p.score) >= 10 }">{{ (p.Score || p.score).toFixed(1) }}</span>
-                            </div>
+                            </div> -->
                             <div title="伤害">⚔️ {{ (p.TotalDamageDealtToChampions ?? p.totalDamageDealtToChampions)?.toLocaleString() }}</div>
                             <div title="经济">💰 {{ (p.GoldEarned ?? p.goldEarned)?.toLocaleString() }}</div>
                         </div>
