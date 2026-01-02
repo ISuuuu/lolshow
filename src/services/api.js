@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: '/api/lol',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -18,13 +18,6 @@ apiClient.interceptors.request.use(config => {
   return Promise.reject(error);
 });
 
-const userClient = axios.create({
-  baseURL: '/api/user',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
 export default {
   // 获取战绩历史
   getMatchHistory(summonerName, page = 1, pageSize = 10, gameMode = '') {
@@ -36,12 +29,12 @@ export default {
     if (gameMode) {
       params.gameMode = gameMode;
     }
-    return apiClient.get('/history', { params });
+    return apiClient.get('/lol/history', { params });
   },
 
   // 获取单局详情 (10人数据)
   getMatchDetails(matchId) {
-    return apiClient.get(`/match/${matchId}`);
+    return apiClient.get(`/lol/match/${matchId}`);
   },
 
   // 获取 Data Dragon 版本 (可选，用于获取最新版本号)
@@ -61,7 +54,7 @@ export default {
 
   // 用户登录
   async login(data) {
-    const response = await userClient.post('/login', data);
+    const response = await apiClient.post('/user/login', data);
     // 兼容不同的后端返回结构: { token: '...' } 或 { data: { token: '...' } }
     const token = response.data?.token || response.data?.data?.token;
     if (token) {
